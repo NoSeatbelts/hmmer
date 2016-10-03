@@ -516,9 +516,9 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
           break;
         default: 	   p7_Fail("Unexpected error in reading HMMs from %s",   cfg->hmmfile);
       }
-      fprintf(stderr, "About to try textizing... wish me luck!\n");
-      ESL_ALLOC(qsq->seq, qsq->L + 1);
-      esl_abc_Textize(abc, qsq->dsq, qsq->L, qsq->seq);
+      //fprintf(stderr, "About to try textizing... wish me luck!\n");
+      //ESL_ALLOC(qsq->seq, qsq->L + 1);
+      //esl_abc_Textize(abc, qsq->dsq, qsq->L, qsq->seq);
 
 
 
