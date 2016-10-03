@@ -1621,6 +1621,11 @@ p7_tophits_TabularTargets(FILE *ofp, char *qname, char *qacc, P7_TOPHITS *th, P7
   return eslOK;
 }
 
+int p7_tophits_EmitMatchlessHits(FILE *fp, ESL_SQ *qsq) {
+    fprintf(fp, ">%s\n%s\n", qsq->name, qsq->seq);
+    return eslOK;
+}
+
 
 /* Function:  p7_tophits_TabularDomains()
  * Synopsis:  Output parseable table of per-domain hits
@@ -2178,6 +2183,7 @@ main(int argc, char **argv)
   esl_getopts_Destroy(go);
   return eslOK;
 }
+
 #endif /*p7TOPHITS_TESTDRIVE*/
 
 

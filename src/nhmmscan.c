@@ -52,6 +52,7 @@ static ESL_OPTIONS options[] = {
   { "-h",           eslARG_NONE,   FALSE, NULL, NULL,    NULL,  NULL,  NULL,            "show brief help on version and usage",                          1 },
   /* Control of output */
   { "-o",           eslARG_OUTFILE, NULL, NULL, NULL,    NULL,  NULL,  NULL,            "direct output to file <f>, not stdout",                         2 },
+  { "--nohitsout", eslARG_OUTFILE, NULL, NULL, NULL,    NULL,  NULL,  NULL,            "emit reads with no hits to file <f>",                           2 },
   { "--tblout",     eslARG_OUTFILE, NULL, NULL, NULL,    NULL,  NULL,  NULL,            "save parseable table of per-sequence hits to file <f>",         2 },
   { "--dfamtblout", eslARG_OUTFILE,      NULL, NULL, NULL,    NULL,  NULL,  NULL,              "save table of hits to file, in Dfam format <f>",               2 },
   { "--aliscoresout", eslARG_OUTFILE,   NULL, NULL, NULL,    NULL,  NULL,  NULL,               "save of scores for each position in each alignment to <f>",    2 },
@@ -310,6 +311,7 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
   FILE            *tblfp    = NULL;		 /* output stream for tabular per-seq (--tblout)    */
   FILE            *dfamtblfp    = NULL;            /* output stream for tabular Dfam format (--dfamtblout)    */
   FILE            *aliscoresfp  = NULL;            /* output stream for alignment scores (--aliscoresout)    */
+  FILE            *nohitsfp  = NULL;            /* output stream for alignment scores (--aliscoresout)    */
 
   P7_BG           *bg_manual  = NULL;
 
@@ -326,6 +328,7 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
   int              hstatus  = eslOK;
   int              sstatus  = eslOK;
   int              i;
+  int              hasp7_hit = 0;
 
   int              ncpus    = 0;
 
@@ -393,7 +396,8 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
 
   /* Open the results output files */
   if (esl_opt_IsOn(go, "-o"))          { if ((ofp      = fopen(esl_opt_GetString(go, "-o"),          "w")) == NULL)  esl_fatal("Failed to open output file %s for writing\n",                 esl_opt_GetString(go, "-o")); }
-  if (esl_opt_IsOn(go, "--tblout"))    { if ((tblfp    = fopen(esl_opt_GetString(go, "--tblout"),    "w")) == NULL)  esl_fatal("Failed to open tabular per-seq output file %s for writing\n", esl_opt_GetString(go, "--tblfp")); }
+  if (esl_opt_IsOn(go, "--tblout"))    { if ((tblfp    = fopen(esl_opt_GetString(go, "--tblout"),    "w")) == NULL)  esl_fatal("Failed to open tabular per-seq output file %s for writing\n", esl_opt_GetString(go, "--tblout")); }
+  if (esl_opt_IsOn(go, "--nohitsout")){ if ((nohitsfp  = fopen(esl_opt_GetString(go, "--nohitsout"),   "w")) == NULL)  esl_fatal("Failed to open tabular per-seq output file %s for writing\n", esl_opt_GetString(go, "--nohitsout")); }
   if (esl_opt_IsOn(go, "--dfamtblout"))    { if ((dfamtblfp    = fopen(esl_opt_GetString(go, "--dfamtblout"),"w"))    == NULL)  esl_fatal("Failed to open tabular dfam output file %s for writing\n", esl_opt_GetString(go, "--dfamtblout")); }
   if (esl_opt_IsOn(go, "--aliscoresout"))  { if ((aliscoresfp  = fopen(esl_opt_GetString(go, "--aliscoresout"),"w")) == NULL)  esl_fatal("Failed to open alignment scores output file %s for writing\n", esl_opt_GetString(go, "--aliscoresout")); }
  
@@ -452,7 +456,6 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
       if (sstatus == eslEMEM)                 p7_Fail("Memory allocation error reading sequence file\n", status);
       if (sstatus == eslEINCONCEIVABLE)       p7_Fail("Unexpected error %d reading sequence file\n", status);
      // if (qsq->L > NHMMER_MAX_RESIDUE_COUNT)  p7_Fail("Input sequence %s in file %s exceeds maximum length of %d bases.\n",  qsq->name, cfg->seqfile, NHMMER_MAX_RESIDUE_COUNT);
-
       nquery++;
       esl_stopwatch_Start(w);	                          
 
@@ -496,6 +499,7 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
           if (ncpus > 0) esl_threads_AddThread(threadObj, &info[i]);
         #endif
       }
+      
 
 #ifdef HMMER_THREADS
       if (ncpus > 0)  hstatus = thread_loop(threadObj, queue, hfp);
@@ -512,6 +516,9 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
           break;
         default: 	   p7_Fail("Unexpected error in reading HMMs from %s",   cfg->hmmfile);
       }
+      fprintf(stderr, "About to try textizing... wish me luck!\n");
+      ESL_ALLOC(qsq->seq, qsq->L + 1);
+      esl_abc_Textize(abc, qsq->dsq, qsq->L, qsq->seq);
 
 
 
@@ -546,9 +553,12 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
       //tally up total number of hits and target coverage
       info->pli->n_output = info->pli->pos_output = 0;
       for (i = 0; i < info->th->N; i++) {
-          if ( (info->th->hit[i]->flags & p7_IS_REPORTED) || info->th->hit[i]->flags & p7_IS_INCLUDED) {
-              info->pli->n_output++;
-              info->pli->pos_output += abs(info->th->hit[i]->dcl[0].jali - info->th->hit[i]->dcl[0].iali) + 1;
+          switch(info->th->hit[i]->flags & (p7_IS_REPORTED | p7_IS_INCLUDED)) {
+              case p7_IS_REPORTED | p7_IS_INCLUDED: case p7_IS_REPORTED:
+                ++hasp7_hit; // fall-through
+              case p7_IS_INCLUDED:
+                info->pli->n_output++;
+                info->pli->pos_output += abs(info->th->hit[i]->dcl[0].jali - info->th->hit[i]->dcl[0].iali) + 1;
           }
       }
 
@@ -561,7 +571,7 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
       if (tblfp)     p7_tophits_TabularTargets(tblfp,    qsq->name, qsq->acc, info->th, info->pli, (nquery == 1));
       if (dfamtblfp) p7_tophits_TabularXfam(dfamtblfp,   qsq->name, NULL, info->th, info->pli);
       if (aliscoresfp) p7_tophits_AliScores(aliscoresfp, qsq->name, info->th );
-
+      if (nohitsfp && hasp7_hit == 0) p7_tophits_EmitMatchlessHits(nohitsfp, qsq);
 
       esl_stopwatch_Stop(w);
       info->pli->nseqs = 1;
@@ -618,6 +628,7 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
   if (sqfp!=NULL) esl_sqfile_Close(sqfp);
 
   if (ofp != stdout) fclose(ofp);
+  if (nohitsfp)      fclose(nohitsfp);
   if (tblfp)         fclose(tblfp);
   if (dfamtblfp)     fclose(dfamtblfp);
   if (aliscoresfp)   fclose(aliscoresfp);
