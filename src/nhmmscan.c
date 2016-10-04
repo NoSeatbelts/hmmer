@@ -311,7 +311,7 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
   FILE            *tblfp    = NULL;		 /* output stream for tabular per-seq (--tblout)    */
   FILE            *dfamtblfp    = NULL;            /* output stream for tabular Dfam format (--dfamtblout)    */
   FILE            *aliscoresfp  = NULL;            /* output stream for alignment scores (--aliscoresout)    */
-  FILE            *nohitsfp  = NULL;            /* output stream for alignment scores (--aliscoresout)    */
+  FILE            *nohitsfp  = NULL;            /* output stream for records without passing hits (--nohitsout)    */
 
   P7_BG           *bg_manual  = NULL;
 
