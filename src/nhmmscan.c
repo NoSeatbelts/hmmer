@@ -516,7 +516,6 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
           break;
         default: 	   p7_Fail("Unexpected error in reading HMMs from %s",   cfg->hmmfile);
       }
-      //fprintf(stderr, "About to try textizing... wish me luck!\n");
 
 
 
@@ -569,7 +568,7 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
       if (tblfp)     p7_tophits_TabularTargets(tblfp,    qsq->name, qsq->acc, info->th, info->pli, (nquery == 1));
       if (dfamtblfp) p7_tophits_TabularXfam(dfamtblfp,   qsq->name, NULL, info->th, info->pli);
       if (aliscoresfp) p7_tophits_AliScores(aliscoresfp, qsq->name, info->th );
-      if (nohitsfp && hasp7_hit == 0) fprintf(stderr, "No hit found! Emitting as matchless.\n"), p7_tophits_WriteFasta(nohitsfp, abc, qsq);
+      if (nohitsfp && hasp7_hit == 0) p7_tophits_WriteFasta(nohitsfp, abc, qsq);
 
       esl_stopwatch_Stop(w);
       info->pli->nseqs = 1;
