@@ -1621,8 +1621,14 @@ p7_tophits_TabularTargets(FILE *ofp, char *qname, char *qacc, P7_TOPHITS *th, P7
   return eslOK;
 }
 
-int p7_tophits_EmitMatchlessHits(FILE *fp, ESL_SQ *qsq) {
-    fprintf(fp, ">%s\n%s\n", qsq->name, qsq->seq);
+int p7_tophits_EmitMatchlessHits(FILE *fp, ESL_ALPHABET *abc, ESL_SQ *qsq) {
+    int64_t i;
+    fputc('>', fp);
+    fputs(qsq->name, fp);
+    fputc('\n', fp);
+    for (i = 0; i < qsq->L; ++i)
+      fputc(abc->sym[qsq->dsq[i+1]], fp);
+    fputc('\n', fp);
     return eslOK;
 }
 
