@@ -1621,7 +1621,8 @@ p7_tophits_TabularTargets(FILE *ofp, char *qname, char *qacc, P7_TOPHITS *th, P7
   return eslOK;
 }
 
-int p7_tophits_EmitMatchlessHits(FILE *fp, ESL_ALPHABET *abc, ESL_SQ *qsq) {
+int p7_tophits_WriteFasta(FILE *fp, ESL_ALPHABET *abc, ESL_SQ *qsq) {
+    fprintf(stderr, "NO DIGGETY\n");
     int64_t i;
     fputc('>', fp);
     fputs(qsq->name, fp);

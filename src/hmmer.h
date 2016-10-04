@@ -1715,7 +1715,7 @@ extern int p7_tophits_TabularDomains(FILE *ofp, char *qname, char *qacc, P7_TOPH
 extern int p7_tophits_TabularXfam(FILE *ofp, char *qname, char *qacc, P7_TOPHITS *th, P7_PIPELINE *pli);
 extern int p7_tophits_TabularTail(FILE *ofp, const char *progname, enum p7_pipemodes_e pipemode, 
 				  const char *qfile, const char *tfile, const ESL_GETOPTS *go);
-extern int p7_tophits_EmitMatchlessHits(FILE *fp, ESL_ALPHABET *abc, ESL_SQ *qsq);
+extern int p7_tophits_WriteFasta(FILE *fp, ESL_ALPHABET *abc, ESL_SQ *qsq);
 extern int p7_tophits_AliScores(FILE *ofp, char *qname, P7_TOPHITS *th );
 
 /* p7_trace.c */
