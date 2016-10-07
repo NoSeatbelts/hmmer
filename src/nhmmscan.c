@@ -456,6 +456,7 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
   /* Outside loop: over each query sequence in <seqfile>. */
   while ((sstatus = esl_sqio_Read(sqfp, qsq)) == eslOK)
   {
+      hasp7_hit = 0;
       if (sstatus == eslEMEM)                 p7_Fail("Memory allocation error reading sequence file\n", status);
       if (sstatus == eslEINCONCEIVABLE)       p7_Fail("Unexpected error %d reading sequence file\n", status);
      // if (qsq->L > NHMMER_MAX_RESIDUE_COUNT)  p7_Fail("Input sequence %s in file %s exceeds maximum length of %d bases.\n",  qsq->name, cfg->seqfile, NHMMER_MAX_RESIDUE_COUNT);
