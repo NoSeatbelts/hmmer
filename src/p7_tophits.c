@@ -1621,6 +1621,42 @@ p7_tophits_TabularTargets(FILE *ofp, char *qname, char *qacc, P7_TOPHITS *th, P7
   return eslOK;
 }
 
+extern int p7_tophits_WriteTopOnly(FILE *ofp, ESL_ALPHABET *abc, ESL_SQ *qsq, P7_TOPHITS *th, P7_PIPELINE *pli) {
+  char *qname = qsq->name;
+  char *qacc =  qsq->acc;
+  int qnamew = ESL_MAX(20, strlen(qname));
+  int tnamew = ESL_MAX(20, p7_tophits_GetMaxNameLength(th));
+  int qaccw  = ((qacc != NULL) ? ESL_MAX(10, strlen(qacc)) : 10);
+  int taccw  = ESL_MAX(10, p7_tophits_GetMaxAccessionLength(th));
+  int posw   = (pli->long_targets ? ESL_MAX(7, p7_tophits_GetMaxPositionLength(th)) : 0);
+  int h, d;
+  for (h = 0; h < th->N; h++)
+    if (th->hit[h]->flags & p7_IS_REPORTED)
+    {
+      d  = th->hit[h]->best_domain;
+        if (fprintf(ofp, "%-*s %-*s %-*s %-*s %7d %7d %*d %*d %*d %*d %*ld %6s %9.2g %6.1f %5.1f  %s\n",
+            tnamew, th->hit[h]->name,
+            taccw,  th->hit[h]->acc ? th->hit[h]->acc : "-",
+            qnamew, qname,
+            qaccw,  ( (qacc != NULL && qacc[0] != '\0') ? qacc : "-"),
+            th->hit[h]->dcl[d].ad->hmmfrom,
+            th->hit[h]->dcl[d].ad->hmmto,
+            posw, th->hit[h]->dcl[d].iali,
+            posw, th->hit[h]->dcl[d].jali,
+            posw, th->hit[h]->dcl[d].ienv,
+            posw, th->hit[h]->dcl[d].jenv,
+            posw, th->hit[h]->dcl[0].ad->L,
+            (th->hit[h]->dcl[d].iali < th->hit[h]->dcl[d].jali ? "   +  "  :  "   -  "),
+            exp(th->hit[h]->lnP),
+            th->hit[h]->score,
+            th->hit[h]->dcl[d].dombias * eslCONST_LOG2R, /* convert NATS to BITS at last moment */
+            th->hit[h]->desc == NULL ? "-" :  th->hit[h]->desc ) < 0)
+              ESL_EXCEPTION_SYS(eslEWRITE, "tabular per-sequence hit list: write failed");
+      break;
+    }
+    return eslOK;
+}
+
 int p7_tophits_WriteFasta(FILE *fp, ESL_ALPHABET *abc, ESL_SQ *qsq) {
     int64_t i;
     fputc('>', fp);

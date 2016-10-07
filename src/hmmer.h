@@ -1717,6 +1717,7 @@ extern int p7_tophits_TabularTail(FILE *ofp, const char *progname, enum p7_pipem
 				  const char *qfile, const char *tfile, const ESL_GETOPTS *go);
 extern int p7_tophits_WriteFasta(FILE *fp, ESL_ALPHABET *abc, ESL_SQ *qsq);
 extern int p7_tophits_AliScores(FILE *ofp, char *qname, P7_TOPHITS *th );
+extern int p7_tophits_WriteTopOnly(FILE *ofp, ESL_ALPHABET *abc, ESL_SQ *qsq, P7_TOPHITS *th, P7_PIPELINE *pli);
 
 /* p7_trace.c */
 extern P7_TRACE *p7_trace_Create(void);

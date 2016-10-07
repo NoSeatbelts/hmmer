@@ -52,7 +52,8 @@ static ESL_OPTIONS options[] = {
   { "-h",           eslARG_NONE,   FALSE, NULL, NULL,    NULL,  NULL,  NULL,            "show brief help on version and usage",                          1 },
   /* Control of output */
   { "-o",           eslARG_OUTFILE, NULL, NULL, NULL,    NULL,  NULL,  NULL,            "direct output to file <f>, not stdout",                         2 },
-  { "--nohitsout", eslARG_OUTFILE, NULL, NULL, NULL,    NULL,  NULL,  NULL,            "emit reads with no hits to file <f>",                           2 },
+  { "--nohitsout", eslARG_OUTFILE, NULL, NULL, NULL,    NULL,  NULL,  NULL,            "emit reads with no hits to file <f>",                            2 },
+  { "--thonlyout", eslARG_OUTFILE, NULL, NULL, NULL,    NULL,  NULL,  NULL,            "emit top hit only for reads with hits to file <f>",              2 },
   { "--tblout",     eslARG_OUTFILE, NULL, NULL, NULL,    NULL,  NULL,  NULL,            "save parseable table of per-sequence hits to file <f>",         2 },
   { "--dfamtblout", eslARG_OUTFILE,      NULL, NULL, NULL,    NULL,  NULL,  NULL,              "save table of hits to file, in Dfam format <f>",               2 },
   { "--aliscoresout", eslARG_OUTFILE,   NULL, NULL, NULL,    NULL,  NULL,  NULL,               "save of scores for each position in each alignment to <f>",    2 },
@@ -312,6 +313,7 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
   FILE            *dfamtblfp    = NULL;            /* output stream for tabular Dfam format (--dfamtblout)    */
   FILE            *aliscoresfp  = NULL;            /* output stream for alignment scores (--aliscoresout)    */
   FILE            *nohitsfp  = NULL;            /* output stream for records without passing hits (--nohitsout)    */
+  FILE            *thonlyfp  = NULL;            /* output stream for records without passing hits (--thonlyout)    */
 
   P7_BG           *bg_manual  = NULL;
 
@@ -398,6 +400,7 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
   if (esl_opt_IsOn(go, "-o"))          { if ((ofp      = fopen(esl_opt_GetString(go, "-o"),          "w")) == NULL)  esl_fatal("Failed to open output file %s for writing\n",                 esl_opt_GetString(go, "-o")); }
   if (esl_opt_IsOn(go, "--tblout"))    { if ((tblfp    = fopen(esl_opt_GetString(go, "--tblout"),    "w")) == NULL)  esl_fatal("Failed to open tabular per-seq output file %s for writing\n", esl_opt_GetString(go, "--tblout")); }
   if (esl_opt_IsOn(go, "--nohitsout")){ if ((nohitsfp  = fopen(esl_opt_GetString(go, "--nohitsout"),   "w")) == NULL)  esl_fatal("Failed to open tabular per-seq output file %s for writing\n", esl_opt_GetString(go, "--nohitsout")); }
+  if (esl_opt_IsOn(go, "--thonlyout")){ if ((thonlyfp  = fopen(esl_opt_GetString(go, "--thonlyout"),   "w")) == NULL)  esl_fatal("Failed to open tabular per-seq output file %s for writing\n", esl_opt_GetString(go, "--thonlyout")); }
   if (esl_opt_IsOn(go, "--dfamtblout"))    { if ((dfamtblfp    = fopen(esl_opt_GetString(go, "--dfamtblout"),"w"))    == NULL)  esl_fatal("Failed to open tabular dfam output file %s for writing\n", esl_opt_GetString(go, "--dfamtblout")); }
   if (esl_opt_IsOn(go, "--aliscoresout"))  { if ((aliscoresfp  = fopen(esl_opt_GetString(go, "--aliscoresout"),"w")) == NULL)  esl_fatal("Failed to open alignment scores output file %s for writing\n", esl_opt_GetString(go, "--aliscoresout")); }
  
@@ -569,6 +572,7 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
       if (dfamtblfp) p7_tophits_TabularXfam(dfamtblfp,   qsq->name, NULL, info->th, info->pli);
       if (aliscoresfp) p7_tophits_AliScores(aliscoresfp, qsq->name, info->th );
       if (nohitsfp && hasp7_hit == 0) p7_tophits_WriteFasta(nohitsfp, abc, qsq);
+      else if (thonlyfp) p7_tophits_WriteTopOnly(thonlyfp, abc, qsq, info->th, info->pli);
 
       esl_stopwatch_Stop(w);
       info->pli->nseqs = 1;
