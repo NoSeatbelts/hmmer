@@ -631,6 +631,7 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
 
   if (ofp != stdout) fclose(ofp);
   if (nohitsfp)      fclose(nohitsfp);
+  if (thonlyfp)      fclose(thonlyfp);
   if (tblfp)         fclose(tblfp);
   if (dfamtblfp)     fclose(dfamtblfp);
   if (aliscoresfp)   fclose(aliscoresfp);
