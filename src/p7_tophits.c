@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <float.h>
 
 #include "easel.h"
 #include "hmmer.h"
@@ -1629,9 +1630,13 @@ extern int p7_tophits_WriteTopOnly(FILE *ofp, ESL_ALPHABET *abc, ESL_SQ *qsq, P7
   int qaccw  = ((qacc != NULL) ? ESL_MAX(10, strlen(qacc)) : 10);
   int taccw  = ESL_MAX(10, p7_tophits_GetMaxAccessionLength(th));
   int posw   = (pli->long_targets ? ESL_MAX(7, p7_tophits_GetMaxPositionLength(th)) : 0);
-  int h, d;
-  for (h = 0; h < th->N; h++)
-    if (th->hit[h]->flags & p7_IS_REPORTED)
+  int h  = -1, d, v;
+  float max_score = -FLT_MAX;
+  for (v = 0; v < th->N; v++)
+    if (th->hit[v]->flags & p7_IS_REPORTED)
+      if(th->hit[v]->score > max_score)
+        max_score = th->hit[v]->score, h = v;
+  if(h > 0)
     {
       d  = th->hit[h]->best_domain;
         if (fprintf(ofp, "%-*s %-*s %-*s %-*s %7d %7d %*d %*d %*d %*d %*ld %6s %9.2g %6.1f %5.1f  %s\n",
@@ -1652,7 +1657,6 @@ extern int p7_tophits_WriteTopOnly(FILE *ofp, ESL_ALPHABET *abc, ESL_SQ *qsq, P7
             th->hit[h]->dcl[d].dombias * eslCONST_LOG2R, /* convert NATS to BITS at last moment */
             th->hit[h]->desc == NULL ? "-" :  th->hit[h]->desc ) < 0)
               ESL_EXCEPTION_SYS(eslEWRITE, "tabular per-sequence hit list: write failed");
-      break;
     }
     return eslOK;
 }

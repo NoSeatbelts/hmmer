@@ -36,6 +36,39 @@ typedef struct {
   float            *fwd_emissions; /* to hold residue emission probabilities in serial order (gathered from the optimized striped <om> with p7_oprofile_GetFwdEmissionArray() ). */
 } WORKER_INFO;
 
+typedef struct {
+  P7_HMM      **h;
+  size_t        n;
+  size_t        m;
+} HMM_VEC;
+
+#define roundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
+
+HMM_VEC p7_hmmvec_Create(P7_HMMFILE *hfp, ESL_ALPHABET *abc) {
+  int status = eslOK;
+  HMM_VEC hv = {0, 0, 128uL};
+  ESL_ALLOC(hv.h, 128uL * sizeof(P7_HMM *));
+  memset(hv.h, 0, sizeof(P7_HMM *) * 128uL);
+  if(abc == NULL) p7_Fail("ESL_ALPHABET abc must be set to call %s.\n", __func__);
+  while((status = p7_hmmfile_Read(hfp, &abc, hv.h + hv.n)) == eslOK) {
+    if(++hv.n >= hv.m) {
+      hv.m = hv.n; roundup32(hv.m);
+      ESL_REALLOC(hv.h, hv.m * sizeof(P7_HMM *));
+      memset(hv.h + hv.n, 0, (hv.m - hv.n) * sizeof(P7_HMM *));
+    }
+  }
+  fprintf(stderr, "%zu records loaded.\n", hv.n);
+  return hv;
+  ERROR:
+    p7_Fail("Could not allocate memory.\n");
+  return hv;
+}
+
+void p7_hmmvec_Destroy(HMM_VEC *hv) {
+  while(hv->n) p7_hmm_Destroy(hv->h[--hv->n]);
+  free(hv->h);
+}
+
 #define REPOPTS     "-E,-T,--cut_ga,--cut_nc,--cut_tc"
 #define DOMREPOPTS  "--domE,--domT,--cut_ga,--cut_nc,--cut_tc"
 #define INCOPTS     "--incE,--incT,--cut_ga,--cut_nc,--cut_tc"
@@ -138,7 +171,7 @@ static char usage[]  = "[-options] <hmmdb> <seqfile>";
 static char banner[] = "search DNA sequence(s) against a DNA profile database";
 
 static int  serial_master(ESL_GETOPTS *go, struct cfg_s *cfg);
-static int  serial_loop  (WORKER_INFO *info, P7_HMMFILE *hfp);
+static int  serial_loop  (WORKER_INFO *info, P7_HMMFILE *hfp, HMM_VEC *hv, ESL_ALPHABET *abc);
 #ifdef HMMER_THREADS
 #define BLOCK_SIZE 1
 static int  thread_loop(ESL_THREADS *obj, ESL_WORK_QUEUE *queue, P7_HMMFILE *hfp);
@@ -381,8 +414,11 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
   if      (hstatus == eslEFORMAT)   p7_Fail("bad format, binary auxfiles, %s:\n%s",     cfg->hmmfile, hfp->errbuf);
   else if (hstatus == eslEINCOMPAT) p7_Fail("HMM file %s contains different alphabets", cfg->hmmfile);
   else if (hstatus != eslOK)        p7_Fail("Unexpected error in reading HMMs from %s", cfg->hmmfile); 
-
   p7_oprofile_Destroy(om);
+  p7_hmmfile_Close(hfp);
+
+  status = p7_hmmfile_OpenE(cfg->hmmfile, p7_HMMDBENV, &hfp, errbuf);
+  HMM_VEC hv = p7_hmmvec_Create(hfp, abc);
   p7_hmmfile_Close(hfp);
 
   /* Open the query sequence database */
@@ -507,9 +543,9 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
 
 #ifdef HMMER_THREADS
       if (ncpus > 0)  hstatus = thread_loop(threadObj, queue, hfp);
-      else	      hstatus = serial_loop(info, hfp);
+      else	      hstatus = serial_loop(info, hfp, &hv, abc);
 #else
-      hstatus = serial_loop(info, hfp);
+      hstatus = serial_loop(info, hfp, &hv, abc);
 #endif
       switch(hstatus)
       {
@@ -628,6 +664,7 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
   if (qsq!=NULL)  esl_sq_Destroy(qsq);
   if (w!=NULL)    esl_stopwatch_Destroy(w);
   if (abc!=NULL)  esl_alphabet_Destroy(abc);
+  p7_hmmvec_Destroy(&hv);
   if (sqfp!=NULL) esl_sqfile_Close(sqfp);
 
   if (ofp != stdout) fclose(ofp);
@@ -642,15 +679,16 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
 
 
 static int
-serial_loop(WORKER_INFO *info, P7_HMMFILE *hfp)
+serial_loop(WORKER_INFO *info, P7_HMMFILE *hfp, HMM_VEC *hv, ESL_ALPHABET *abc)
 {
   int            status;
   int i;
   int seq_len = 0;
   int prev_hit_cnt = 0;
+  P7_HMM          *hmm     = NULL;              /* one HMM query          */
   P7_OPROFILE   *om        = NULL;
+  P7_PROFILE      *gm      = NULL;
   P7_SCOREDATA  *scoredata = NULL;   /* hmm-specific data used by nhmmer */
-  ESL_ALPHABET  *abc = NULL;
 
 #ifdef eslAUGMENT_ALPHABET
   ESL_SQ        *sq_revcmp = NULL;
@@ -665,8 +703,13 @@ serial_loop(WORKER_INFO *info, P7_HMMFILE *hfp)
 
 
   /* Main loop: */
-  while ((status = p7_oprofile_ReadMSV(hfp, &abc, &om)) == eslOK)
+  for(unsigned hi = 0; hi < hv->n; ++hi)
   {
+      hmm = hv->h[hi];
+      gm = p7_profile_Create(hmm->M, abc);
+      om = p7_oprofile_Create(hmm->M, abc);
+      p7_ProfileConfig(hmm, info->bg, gm, 100, p7_LOCAL); /* 100 is a dummy length for now; and MSVFilter requires local mode */
+      p7_oprofile_Convert(gm, om);                  /* <om> is now p7_LOCAL, multihit */
       seq_len = 0;
 
       p7_pli_NewModel(info->pli, om, info->bg);
@@ -720,12 +763,8 @@ serial_loop(WORKER_INFO *info, P7_HMMFILE *hfp)
       p7_oprofile_Destroy(om);
       p7_hmm_ScoreDataDestroy(scoredata);
 
-
-
-
   }
 
-  esl_alphabet_Destroy(abc);
 #ifdef eslAUGMENT_ALPHABET
   esl_sq_Destroy(sq_revcmp);
 #endif

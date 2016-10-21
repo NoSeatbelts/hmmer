@@ -1237,7 +1237,7 @@ p7_hmmfile_PositionByKey(P7_HMMFILE *hfp, const char *key)
  *            <hfp> is not a seekable stream. 
  */
 int
-p7_hmmfile_Position(P7_HMMFILE *hfp, const off_t offset)
+e7_hmmfile_Position(P7_HMMFILE *hfp, const off_t offset)
 {
   if (fseeko(hfp->f, offset, SEEK_SET) != 0)    ESL_EXCEPTION(eslESYS, "fseek failed");
 
@@ -1632,6 +1632,7 @@ read_asc30hmm(P7_HMMFILE *hfp, ESL_ALPHABET **ret_abc, P7_HMM **opt_hmm)
 static int
 read_bin30hmm(P7_HMMFILE *hfp, ESL_ALPHABET **ret_abc, P7_HMM **opt_hmm)
 {
+  fprintf(stderr, "hfp: %p, ret abc %p, opt_hmm %p.\n");
   ESL_ALPHABET *abc = NULL;
   P7_HMM       *hmm = NULL;
   uint32_t      magic;
