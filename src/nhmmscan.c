@@ -46,9 +46,7 @@ typedef struct {
 
 HMM_VEC p7_hmmvec_Create(P7_HMMFILE *hfp, ESL_ALPHABET *abc) {
   int status = eslOK;
-  HMM_VEC hv = {0, 0, 128uL};
-  ESL_ALLOC(hv.h, 128uL * sizeof(P7_HMM *));
-  memset(hv.h, 0, sizeof(P7_HMM *) * 128uL);
+  HMM_VEC hv = {calloc(128uL, sizeof(P7_HMM *)), 0, 128uL};
   if(abc == NULL) p7_Fail("ESL_ALPHABET abc must be set to call %s.\n", __func__);
   while((status = p7_hmmfile_Read(hfp, &abc, hv.h + hv.n)) == eslOK) {
     if(++hv.n >= hv.m) {
@@ -57,7 +55,6 @@ HMM_VEC p7_hmmvec_Create(P7_HMMFILE *hfp, ESL_ALPHABET *abc) {
       memset(hv.h + hv.n, 0, (hv.m - hv.n) * sizeof(P7_HMM *));
     }
   }
-  fprintf(stderr, "%zu records loaded.\n", hv.n);
   return hv;
   ERROR:
     p7_Fail("Could not allocate memory.\n");
@@ -681,14 +678,14 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
 static int
 serial_loop(WORKER_INFO *info, P7_HMMFILE *hfp, HMM_VEC *hv, ESL_ALPHABET *abc)
 {
-  int            status;
   int i;
-  int seq_len = 0;
-  int prev_hit_cnt = 0;
-  P7_HMM          *hmm     = NULL;              /* one HMM query          */
-  P7_OPROFILE   *om        = NULL;
-  P7_PROFILE      *gm      = NULL;
-  P7_SCOREDATA  *scoredata = NULL;   /* hmm-specific data used by nhmmer */
+  int seq_len             = 0;
+  int prev_hit_cnt        = 0;
+  int          status     = eslOK;
+  P7_HMM       *hmm       = NULL;              /* one HMM query          */
+  P7_OPROFILE  *om        = NULL;
+  P7_PROFILE   *gm        = NULL;
+  P7_SCOREDATA *scoredata = NULL;   /* hmm-specific data used by nhmmer */
 
 #ifdef eslAUGMENT_ALPHABET
   ESL_SQ        *sq_revcmp = NULL;
