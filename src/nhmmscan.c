@@ -572,7 +572,7 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
       if (tblfp)     p7_tophits_TabularTargets(tblfp,    qsq->name, qsq->acc, info->th, info->pli, (nquery == 1));
       if (dfamtblfp) p7_tophits_TabularXfam(dfamtblfp,   qsq->name, NULL, info->th, info->pli);
       if (aliscoresfp) p7_tophits_AliScores(aliscoresfp, qsq->name, info->th );
-      if (nohitsfp && hasp7_hit == 0) p7_tophits_WriteFasta(nohitsfp, abc, qsq);
+      if (hasp7_hit == 0) {if(nohitsfp) p7_tophits_WriteFasta(nohitsfp, abc, qsq);}
       else if (thonlyfp) p7_tophits_WriteTopOnly(thonlyfp, abc, qsq, info->th, info->pli);
 
       esl_stopwatch_Stop(w);
@@ -585,6 +585,7 @@ serial_master(ESL_GETOPTS *go, struct cfg_s *cfg)
       p7_pipeline_Destroy(info->pli);
       p7_tophits_Destroy(info->th);
       esl_sq_Reuse(qsq);
+      if(nquery % 1000 == 0) fprintf(stderr, "Processed %i records.\n", nquery);
   }
 
 
